@@ -1,5 +1,7 @@
 from __future__ import unicode_literals
 from django.db import models, IntegrityError
+from django.db.models import Count
+
 from django.core.exceptions import ObjectDoesNotExist
 import re
 import bcrypt
@@ -30,43 +32,71 @@ class Users(models.Model):
     updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
 
 
-class Quote(models.Model):
-    the_quote = models.CharField(max_length=255)
-    quote_by = models.CharField(max_length=100)
-    owner = models.ForeignKey('Users', on_delete=models.CASCADE, related_name="quoteowner")
-    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
-    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+
+class Poke(models.Model):
+    poke_owner = models.ForeignKey('Users', on_delete=models.CASCADE, related_name="pokeowner")
+    poked = models.ForeignKey('Users', on_delete=models.CASCADE, related_name="ispoked")
+    counter = models.IntegerField(blank=False, default=0, null=True)
 
 
-class Favorite(models.Model):
-    user_id = models.ForeignKey('Users', on_delete=models.CASCADE, related_name="userid")
-    quote_id = models.ForeignKey('Quote', on_delete=models.CASCADE, related_name="quoteid")
-    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
-    updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+class NewPoke(object):
+
+    @staticmethod
+    def new_poke(user_id, other_id):
+        user = Users.objects.get(id=user_id)
+        other = Users.objects.get(id=other_id)
+        has_poked = Poke.objects.filter(poke_owner=user, poked=other)
+        if has_poked:
+            num = has_poked[0].counter
+            num += 1
+            has_poked.update(counter=num)
+        else:
+            Poke.objects.create(poke_owner=user, poked=other, counter=1)
 
 
-# MODELS ABOVE
+class ShowUsers(object):
+    def __init__(self):
+        self.not_poked = ''
+        self.poked = ''
+
+    @staticmethod
+    def pokes_from(user_id):
+        all_pokes = Poke.objects.filter(poked=user_id).order_by('-counter')
+        return all_pokes
+
+    def all_users(self, user_id):
+        # poked = Poke.objects.filter(poked_id=user_id).order_by('-counter')
+        are_poked = Poke.objects.all().order_by('-counter')
+        not_poked = [user_id]
+        for val in are_poked:
+            not_poked.append(val.poked_id)
+        test = Users.objects.all()
+        for num in not_poked:
+            test = test.exclude(id=num)
+        self.not_poked = test
+        self.poked = are_poked
+
 
 #           +++++ TESTING CODE +++++
 
-
-class OwnedQuotes(object):
-    def __init__(self, owner_id):
-        self.owner_id = owner_id
-        self.quotes = ''
-        self.owner = ''
-        self.times = ''
-        self.truth = False
-
-    def get_quote(self):
-        try:
-            self.owner = Users.objects.get(id=self.owner_id)
-            self.quotes = Quote.objects.filter(owner_id=self.owner_id)
-            self.times = self.quotes.count()
-            self.truth = True
-
-        except ObjectDoesNotExist:
-            self.truth = False
+#
+# class OwnedQuotes(object):
+#     def __init__(self, owner_id):
+#         self.owner_id = owner_id
+#         self.quotes = ''
+#         self.owner = ''
+#         self.times = ''
+#         self.truth = False
+#
+#     def get_quote(self):
+#         try:
+#             self.owner = Users.objects.get(id=self.owner_id)
+#             self.quotes = Quote.objects.filter(owner_id=self.owner_id)
+#             self.times = self.quotes.count()
+#             self.truth = True
+#
+#         except ObjectDoesNotExist:
+#             self.truth = False
 
 # self.test = Users.objects.filter(quoteowner__quoteid__user_id_id=self.id)  TODO THIS IS FAV? WTF
 
@@ -75,66 +105,66 @@ class OwnedQuotes(object):
 
 #           ***** THIS HANDLES POPULATING QUOTES ON PAGE *****
 
-
-class AddQuotes(object):
-    def __init__(self):
-        self.quote = ''
-        self.quote_by = ''
-        self.valid = True
-        self.message_dict = {
-            'alert_quote': '',
-            'alert_by': '',
-        }
-
-    def get_data(self, data):
-        self.quote_by = data['quote_by']
-        self.quote = data['quote']
-        return self
-
-    def quote_validate(self):
-        if len(self.quote) < 11:
-            self.message_dict['alert_quote'] = "quote must be 10 or longer"
-            self.valid = False
-        if len(self.quote_by) < 4:
-            self.message_dict['alert_by'] = "Name of quoter must be 3 or longer"
-            self.valid = False
-        return self.valid
-
-    def add_quote(self, user_id):
-        if self.valid:
-            user = Users.objects.get(id=user_id)
-            Quote.objects.create(the_quote=self.quote, quote_by=self.quote_by, owner=user)
+#
+# class AddQuotes(object):
+#     def __init__(self):
+#         self.quote = ''
+#         self.quote_by = ''
+#         self.valid = True
+#         self.message_dict = {
+#             'alert_quote': '',
+#             'alert_by': '',
+#         }
+#
+#     def get_data(self, data):
+#         self.quote_by = data['quote_by']
+#         self.quote = data['quote']
+#         return self
+#
+#     def quote_validate(self):
+#         if len(self.quote) < 11:
+#             self.message_dict['alert_quote'] = "quote must be 10 or longer"
+#             self.valid = False
+#         if len(self.quote_by) < 4:
+#             self.message_dict['alert_by'] = "Name of quoter must be 3 or longer"
+#             self.valid = False
+#         return self.valid
+#
+#     def add_quote(self, user_id):
+#         if self.valid:
+#             user = Users.objects.get(id=user_id)
+#             Quote.objects.create(the_quote=self.quote, quote_by=self.quote_by, owner=user)
 
 
 #           ***** THIS HANDLES LIKES *****
 
-
-class UserQuote(object):
-    def __init__(self, user_id):
-        self.user_id = user_id
-        self.quotes = ''
-        self.others = ''
-
-    def pull_quote(self):
-        self.quotes = Quote.objects.filter(quoteid__user_id=self.user_id)
-        # self.quotes = Favorite.objects.filter(user_id=self.user_id)
-        # self.others = Quote.objects.all().exclude(owner_id=self.user_id)
-        self.others = Quote.objects.exclude(quoteid__user_id=self.user_id)
-
+#
+# class UserQuote(object):
+#     def __init__(self, user_id):
+#         self.user_id = user_id
+#         self.quotes = ''
+#         self.others = ''
+#
+#     def pull_quote(self):
+#         self.quotes = Quote.objects.filter(quoteid__user_id=self.user_id)
+#         # self.quotes = Favorite.objects.filter(user_id=self.user_id)
+#         # self.others = Quote.objects.all().exclude(owner_id=self.user_id)
+#         self.others = Quote.objects.exclude(quoteid__user_id=self.user_id)
+#
 
 #           ***** THIS HANDLES LIKING AND UNLIKE QUOTES
 
-
-class LikeUnlike(object):
-
-    @staticmethod
-    def passed_data(route, user_id):
-        Favorite.objects.create(quote_id_id=route, user_id_id=user_id)
-
-    @staticmethod
-    def unlike(route, user_id):
-        unlike = Favorite.objects.filter(quote_id_id=route, user_id_id=user_id)
-        unlike.delete()
+#
+# class LikeUnlike(object):
+#
+#     @staticmethod
+#     def passed_data(route, user_id):
+#         Favorite.objects.create(quote_id_id=route, user_id_id=user_id)
+#
+#     @staticmethod
+#     def unlike(route, user_id):
+#         unlike = Favorite.objects.filter(quote_id_id=route, user_id_id=user_id)
+#         unlike.delete()
 
 
 #           ***************************
@@ -536,3 +566,20 @@ class EditUser(object):  # TODO class not fully tested only each piece on it's o
 #         if where == 'password':
 #             hash_pw = bcrypt.hashpw(new_val, salt)
 #             user_instances.update(password=hash_pw)
+
+# class Quote(models.Model):
+#     the_quote = models.CharField(max_length=255)
+#     quote_by = models.CharField(max_length=100)
+#     owner = models.ForeignKey('Users', on_delete=models.CASCADE, related_name="quoteowner")
+#     created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+#     updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+#
+#
+# class Favorite(models.Model):
+#     user_id = models.ForeignKey('Users', on_delete=models.CASCADE, related_name="userid")
+#     quote_id = models.ForeignKey('Quote', on_delete=models.CASCADE, related_name="quoteid")
+#     created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
+#     updated_at = models.DateTimeField(auto_now=True, blank=True, null=True)
+
+
+# MODELS ABOVE

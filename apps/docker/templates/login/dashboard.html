@@ -27,56 +27,51 @@
             <a class="logout" href="/log_out">Log Out?</a>
         </table>
     </fieldset>
-    <hr>
+
     <fieldset>
-        <form action="/add_quote/" method="post">
-            {% csrf_token %}
-            <label for="quote_by">Quote by </label>
-            <input type="text" name="quote_by" id='quote_by' placeholder="quote by 3 char min...">
-                <br>
-                <br>
-            <label for="quote">Quote:</label>
-            <textarea name="quote" id='quote' placeholder="quote over 10 char long..." rows="5" cols="50"></textarea>
-                <br>
-            <input type="submit" value="Submit">
-            <input type="reset" value="Reset">
-        </form>
-    </fieldset>
-    <div class="left">
-
-        <h1>Other quotes!</h1>
-        <fieldset>
-            {% for quote in other_quotes %}
-                <li class="{{ quote.id }}">Quote by: {{ quote.quote_by }} </li>
-                <li class="{{ quote.id }}">Quote: {{ quote.the_quote }} </li>
-                <li>Posted by: <a href="/quote/{{ quote.owner.id }}">{{ quote.owner.first_name }}</a></li>
-                <form action="/fav_quote/{{ quote.id }}/" method="post">
-                    {% csrf_token %}
-                    <input type="hidden" name="like" value="{{ quote.id }}">
-                    <input type="submit" value="like">
-                    </form>
-                    <hr>
-            {% endfor %}
-        </fieldset>
-    </div>
-    <div class="right">
-        <h1>Your favorite quotes!</h1>
-        <fieldset>
-            <ul class="messages">
-            {% for quote in user_quotes %}
-                <li class="{{ quote.id }}">Quote by: {{ quote.quote_by }} </li>
-                <li class="{{ quote.id }}">Quote: {{ quote.the_quote }} </li>
-                <li>Posted by: <a href="/quote/{{ quote.owner.id }}">{{ quote.owner.first_name }}</a></li>
-                <form action="/remove/{{ quote.id }}/" method="post">
-                {% csrf_token %}
-                <input type="hidden" name="unlike" value="{{ quote.id }}">
-                <input type="submit" value="Remove">
-                </form>
-
-                <hr>
+    <h2>People Who Poked You!</h2>
+            <ul>
+            {% for poke in poked_me %}
+                <li> {{ poke.poke_owner.first_name }} {{ poke.poke_owner.last_name }} has poked you {{ poke.counter }} times!</li>
             {% endfor %}
             </ul>
-        </fieldset>
+    </fieldset>
+    <div class="right">
+        <h1>People you may want to poke</h1>
+        <table>
+            <tr class="messages">
+                <th>Name:</th>
+                <th>Alias:</th>
+                <th>Email:</th>
+                <th>Pokes:</th>
+                <th>Action:</th>
+            </tr>
+            {% for user in poked_users %}
+                <tr>
+                <td>{{ user.poked.first_name }} {{ user.poked.last_name }} </td>
+                <td>{{ user.poked.username }} </td>
+                <td>{{ user.poked.email }} </td>
+                <td>{{ user.counter }} </td>
+                <td><form action="/poke/{{ user.poked.id }}/" method="post">{% csrf_token %}
+                <input type="hidden" name="poke" value="{{ user.poked.id }}">
+                <input type="submit" value="Poke"></form></td>
+            {% endfor %}
+            {% for user in users %}
+                </tr>
+                <tr>
+                <td>{{ user.first_name }} {{ user.last_name }} </td>
+                <td>{{ user.username }} </td>
+                <td>{{ user.email }} </td>
+                <td>{{ user.pokes }} </td>
+                <td><form action="/poke/{{ user.id }}/" method="post">{% csrf_token %}
+                <input type="hidden" name="poke" value="{{ user.id }}">
+                <input type="submit" value="Poke"></form></td>
+            {% endfor %}
+                </tr>
+
+
+
+        </table>
     </div>
 {#    <a href="/login">Return to add page</a><br><br>#}
 

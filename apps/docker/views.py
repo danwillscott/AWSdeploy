@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
-from models import LogIn, NewUser, AddQuotes, UserQuote, LikeUnlike, OwnedQuotes
+from models import LogIn, NewUser, NewPoke, ShowUsers
+# , AddQuotes, UserQuote, LikeUnlike, OwnedQuotes
 from django.contrib import messages
 
 #           **********************
@@ -20,12 +21,18 @@ def index(request):
 
 def dashboard(request, username):
     if 'username' in request.session:
-        if username == request.session['username']:
-            all_quotes = UserQuote(request.session['user_id'])
-            all_quotes.pull_quote()
+        if username == request.session['username']:  # TODO SHOW ALL USERS!
+            other_users = ShowUsers()
+            other_users.all_users(request.session['user_id'])
+            # other_users = ShowUsers.all_users(])
+            poked_me = ShowUsers.pokes_from(request.session['user_id'])
+            for val in other_users.poked:
+                print val.poked.last_name
+
             context = {
-                'user_quotes': all_quotes.quotes,
-                'other_quotes': all_quotes.others
+                'users': other_users.not_poked,
+                'poked_users': other_users.poked,
+                'poked_me': poked_me
             }
             return render(request, 'login/dashboard.html', context)  # DASHBOARD
         else:
@@ -96,57 +103,62 @@ def user_logout(request):
 
 
 # ===========================================
-#           ***** QUOTE HANDLERS *****
+#           ***** POKE HANDLERS *****
 
-#           **************************
-#           ***** FAV QUOTE PAGE *****
-#           **************************
+#           ********************
+#           ***** NEW POKE *****
+#           ********************
 
-
-def user_quotes(request, owner_id):  # FULLY TESTED
-    if 'user_id' in request.session:
-        user_quote = OwnedQuotes(owner_id)
-        user_quote.get_quote()
-        if user_quote.truth:
-            context = {
-                "user": user_quote.owner,
-                "quotes": user_quote.quotes,
-                "times": user_quote.times
-            }
-            return render(request, 'login/favorite_quote.html', context=context)
-        else:
-            return redirect('/')
-    return redirect('/')
-
-
-#           **************************
-#           ***** MAKE NEW QUOTE *****
-#           **************************
-
-
-def add_quote(request):
+def poke(request, poke_id):
     if request.method == 'POST':
-        new_quote = AddQuotes()
-        new_quote.get_data(request.POST)
-        new_quote.quote_validate()
-        if new_quote.valid:
-            new_quote.add_quote(request.session['user_id'])
-        else:
-            for key, val in new_quote.message_dict.items():
-                messages.error(request, val)
-    return redirect('/')
-
-
-#           ******************************
-#           ***** ADD FROM FAVORITE *****
-#           ******************************
-
-
-def favorite_quote(request, quote_id):    # TODO NO LOGIC YET
-    if request.method == 'POST':
-        if request.POST['like'] == quote_id:
-            LikeUnlike().passed_data(quote_id, request.session['user_id'])
+        NewPoke.new_poke(request.session['user_id'], request.POST['poke'])
     return redirect('/dashboard/{}'.format(request.session['username']))
+
+
+# def user_quotes(request, owner_id):  # FULLY TESTED
+#     if 'user_id' in request.session:
+#         user_quote = OwnedQuotes(owner_id)
+#         user_quote.get_quote()
+#         if user_quote.truth:
+#             context = {
+#                 "user": user_quote.owner,
+#                 "quotes": user_quote.quotes,
+#                 "times": user_quote.times
+#             }
+#             return render(request, 'login/favorite_quote.html', context=context)
+#         else:
+#             return redirect('/')
+#     return redirect('/')
+
+
+#           **************************
+#           ***** MAKE NEW QUOTE *****  TODO THIS NEEDS TO BE REDONE FOR BELT
+#           **************************
+
+
+# def add_quote(request):
+#     if request.method == 'POST':
+#         new_quote = AddQuotes()
+#         new_quote.get_data(request.POST)
+#         new_quote.quote_validate()
+#         if new_quote.valid:
+#             new_quote.add_quote(request.session['user_id'])
+#         else:
+#             for key, val in new_quote.message_dict.items():
+#                 messages.error(request, val)
+#     return redirect('/')
+
+
+#           ******************************
+#           ***** ADD FROM FAVORITE ******  TODO THIS NEEDS TO BE REDONE FOR BELT
+#           ******************************
+
+
+# def favorite_quote(request, quote_id):    # TODO NO LOGIC YET
+#     if request.method == 'POST':
+#         if request.POST['like'] == quote_id:
+#             LikeUnlike().passed_data(quote_id, request.session['user_id'])
+#     return redirect('/dashboard/{}'.format(request.session['username']))
 
 
 #           ********************************
@@ -154,15 +166,15 @@ def favorite_quote(request, quote_id):    # TODO NO LOGIC YET
 #           ********************************
 
 
-def remove_favorite(request, quote_id):   # TODO NO LOGIC YET
-    if 'user_id' in request.session:
-        if request.method == 'POST':
-            pass
-            new_unlike = LikeUnlike()
-            new_unlike.unlike(quote_id, request.session['user_id'])
-
-        return redirect('/dashboard/{}'.format(request.session['username']))
-    return redirect('/')
+# def remove_favorite(request, quote_id):   # TODO NO LOGIC YET
+#     if 'user_id' in request.session:
+#         if request.method == 'POST':
+#             pass
+#             new_unlike = LikeUnlike()
+#             new_unlike.unlike(quote_id, request.session['user_id'])
+#
+#         return redirect('/dashboard/{}'.format(request.session['username']))
+#     return redirect('/')
 
 
 #  ***** SLUG FIELD *****
